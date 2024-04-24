@@ -79,11 +79,11 @@ int main() {
     auto start_serial = chrono::steady_clock::now();
     serialMergeSort(arr, 0, sizeOfArray - 1);
     auto end_serial = chrono::steady_clock::now();
-    cout << "Serial sort time: " << chrono::duration_cast<chrono::milliseconds>(end_serial - start_serial).count() << " milliseconds" << endl;
     
     auto start_parallel = chrono::steady_clock::now();
     parallelMergeSort(arr, 0, sizeOfArray - 1);
     auto end_parallel = chrono::steady_clock::now();
+    cout << "Serial sort time: " << chrono::duration_cast<chrono::milliseconds>(end_serial - start_serial).count() << " milliseconds" << endl;
     cout << "Parallel sort time: " << chrono::duration_cast<chrono::milliseconds>(end_parallel - start_parallel).count() << " milliseconds" << endl;
 
 
