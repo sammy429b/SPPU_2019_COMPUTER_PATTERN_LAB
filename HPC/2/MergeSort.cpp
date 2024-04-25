@@ -1,90 +1,88 @@
 #include <iostream>
+#include <vector>
 #include <omp.h>
 #include <chrono>
 using namespace std;
 
-// function to merge two sorted halves of a array
-void merge(int arr[], int left, int mid, int right){
+void merge(vector<int> &arr, int start, int mid, int end)
+{
+  vector<int> temp(end - start + 1);
+  int k = 0;
+  int s1 = start, s2 = mid + 1, e1 = mid, e2 = end;
+  while (s1 <= e1 && s2 <= e2)
+  {
+    if (arr[s1] <= arr[s2])
+      temp[k++] = arr[s1++];
 
-  int size1 = mid - left + 1;
-  int leftArr[size1];
-  int size2 = right - mid;
-  int rightArr[size2];
-
-
-  for(int i = 0; i < size1; i++){
-    leftArr[i] = arr[left + i];
-  }
-  for(int i = 0 ; i < size2; i++){
-    rightArr[i] = arr[mid + 1 + i];
-  }
-  int i =0, j = 0,  k =left;
-  while(i < size1 && j < size2){
-    if(leftArr[i]<rightArr[j]){
-      arr[k++] = leftArr[i++];
-    }else{
-      arr[k++] = rightArr[j++];
-    }
+    else
+      temp[k++] = arr[s2++];
   }
 
-  while(i < size1){
-    arr[k++] = leftArr[i++];
-  }
-
-  while(i < size2){
-    arr[k++] = leftArr[j++];
-  }
-  
+  while (s1 <= e1)
+    temp[k++] = arr[s1++];
+  while (s2 <= e2)
+    temp[k++] = arr[s2++];
+  for (int i = start; i <= end; i++)
+    arr[i] = temp[i - start];
 }
 
-void serialMergeSort(int arr[], int left, int right){
-  if(left<right){
-    int mid = left + (right-left)/2;
-    serialMergeSort(arr, left, mid);
-    serialMergeSort(arr, mid+1, right);
+void mergeSort(vector<int> &arr, int start, int end)
+{
 
-    merge(arr, left, mid, right);
+  if (start < end)
+  {
+    int len = end - start;
+    int mid = start + (len / 2);
+
+    mergeSort(arr, start, mid);
+    mergeSort(arr, mid + 1, end);
+    merge(arr, start, mid, end);
   }
 }
 
+void mergeSortParallel(vector<int> &arr, int start, int end)
+{
 
-void parallelMergeSort(int arr[], int left, int right){
-  if(left<right){
-    int mid = left + (right-left)/2;
-    #pragma omp parallel sections
+  if (start < end)
+  {
+    int len = end - start;
+    int mid = start + (len / 2);
     {
-        #pragma omp section
-        parallelMergeSort(arr, left, mid);
-
-        #pragma omp section
-        parallelMergeSort(arr, mid+1, right);
+      mergeSort(arr, start, mid);
     }
-    merge(arr, left, mid, right);
+#pragma omp task shared(arr)
+    {
+      mergeSort(arr, mid + 1, end);
+    }
+#pragma omp taskwait
+    {
+      merge(arr, start, mid, end);
+    }
   }
 }
 
+int main()
+{
+  vector<int> arr1;
+  vector<int> arr2;
+  int r = 0;
+  for (int i = 0; i < 500000; i++)
+  {
+    r = rand() % 1000;
+    arr1.push_back(r);
+    arr2.push_back(r);
+  }
+  auto start = chrono::high_resolution_clock::now();
+  mergeSortParallel(arr1, 0, arr1.size() - 1);
+  auto end = chrono::high_resolution_clock::now();
+  int t = chrono::duration_cast<chrono::microseconds>(end - start).count();
+  cout<< "parallel merge sort :" << t<< " microsecond" << "\n";
 
-int main() {
-  int sizeOfArray = 100000;
+  start = chrono::high_resolution_clock::now();
+  mergeSort(arr2, 0, arr2.size() - 1);
+  end = chrono::high_resolution_clock::now();
+  t = chrono::duration_cast<chrono::microseconds>(end - start).count();
+  cout<< "serial merge sort :" << t <<" microsecond"<< "\n";
 
-  int arr[sizeOfArray];
-
-  for (int i = 0; i < sizeOfArray; i++) {
-        arr[i] = rand() % 1000; 
-    }
-
-  cout<<endl;
-
-// serial sort 
-    auto start_serial = chrono::steady_clock::now();
-    serialMergeSort(arr, 0, sizeOfArray - 1);
-    auto end_serial = chrono::steady_clock::now();
-    
-    auto start_parallel = chrono::steady_clock::now();
-    parallelMergeSort(arr, 0, sizeOfArray - 1);
-    auto end_parallel = chrono::steady_clock::now();
-    cout << "Serial sort time: " << chrono::duration_cast<chrono::milliseconds>(end_serial - start_serial).count() << " milliseconds" << endl;
-    cout << "Parallel sort time: " << chrono::duration_cast<chrono::milliseconds>(end_parallel - start_parallel).count() << " milliseconds" << endl;
-
-
+  return 0;
 }
